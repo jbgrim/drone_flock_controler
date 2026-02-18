@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- Start the Gazebo simulation environment -->
+  <executable name="simulation" cmd="gz sim -r Tools/simulation/gz/worlds/default.sdf" output="log" cwd="src/PX4-Autopilot">
+    <env name="GZ_SIM_RESOURCE_PATH" value="Tools/simulation/gz/models"/>
+    <env name="GZ_SIM_SERVER_CONFIG_PATH" value="Tools/simulation/gz/server.config"/>
+  </executable>
+
+  <!-- Start the Micro XRCE Agent for translating ROS2 and uORB topics-->
+  <executable name="micro_xrce_agent" cmd="MicroXRCEAgent udp4 -p 8888" output="log"/>
+  
+  <!-- Start the Ground Control Station (GCS) -->
+  <executable name="gcs" cmd="QGroundControl-x86_64.AppImage" output="log"/>
+
+  <!-- Launch multiple instances of drones with their controllers -->
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="1"/>
+    <arg name="pose_x" value="0"/>
+    <arg name="pose_y" value="0"/>
+  </include> 
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="2"/>
+    <arg name="pose_x" value="0"/>
+    <arg name="pose_y" value="2"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="3"/>
+    <arg name="pose_x" value="2"/>
+    <arg name="pose_y" value="0"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="4"/>
+    <arg name="pose_x" value="4"/>
+    <arg name="pose_y" value="0"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="5"/>
+    <arg name="pose_x" value="2"/>
+    <arg name="pose_y" value="2"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="6"/>
+    <arg name="pose_x" value="0"/>
+    <arg name="pose_y" value="4"/>
+  </include>
+  <!-- <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="7"/>
+    <arg name="pose_x" value="6"/>
+    <arg name="pose_y" value="0"/>
+  </include> -->
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="8"/>
+    <arg name="pose_x" value="4"/>
+    <arg name="pose_y" value="2"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="9"/>
+    <arg name="pose_x" value="2"/>
+    <arg name="pose_y" value="4"/>
+  </include>
+  <!-- <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="10"/>
+    <arg name="pose_x" value="0"/>
+    <arg name="pose_y" value="6"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="11"/>
+    <arg name="pose_x" value="6"/>
+    <arg name="pose_y" value="2"/>
+  </include> -->
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="12"/>
+    <arg name="pose_x" value="4"/>
+    <arg name="pose_y" value="4"/>
+  </include>
+  <!-- <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="13"/>
+    <arg name="pose_x" value="2"/>
+    <arg name="pose_y" value="6"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="14"/>
+    <arg name="pose_x" value="6"/>
+    <arg name="pose_y" value="4"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="15"/>
+    <arg name="pose_x" value="4"/>
+    <arg name="pose_y" value="6"/>
+  </include>
+  <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
+    <arg name="instance_id" value="16"/>
+    <arg name="pose_x" value="6"/>
+    <arg name="pose_y" value="6"/>
+  </include> -->
+</launch>

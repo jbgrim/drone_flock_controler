@@ -1,0 +1,15 @@
+<launch>
+    <arg name="instance_id" default="1"/>
+    <arg name="pose_x" default="0"/>
+    <arg name="pose_y" default="0"/>
+    <executable name="px4_sitl" cmd="build/px4_sitl_default/bin/px4 -d -i $(var instance_id)" output="log" cwd="src/PX4-Autopilot">
+        <env name="PX4_SYS_AUTOSTART" value="4001"/>
+        <env name="PX4_SIM_MODEL" value="gz_x500"/>
+        <env name="PX4_GZ_STANDALONE" value="1"/>
+        <env name="PX4_GZ_MODEL_POSE" value="$(var pose_x),$(var pose_y)"/>
+    </executable>
+    
+    <node pkg="drone_flock_controler" exec="simple_mission" name="drone_controler" output="screen" namespace="px4_$(var instance_id)">
+        <param name="instance_id" value="$(var instance_id)"/>
+    </node>
+</launch>
