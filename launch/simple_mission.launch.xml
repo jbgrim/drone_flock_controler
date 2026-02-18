@@ -10,7 +10,7 @@
   <executable name="micro_xrce_agent" cmd="MicroXRCEAgent udp4 -p 8888" output="log"/>
   
   <!-- Start the Ground Control Station (GCS) -->
-  <executable name="gcs" cmd="QGroundControl-x86_64.AppImage" output="log"/>
+  <executable name="gcs" cmd="./QGroundControl-x86_64.AppImage" output="log"/>
 
   <!-- Launch multiple instances of drones with their controllers -->
   <include file="$(find-pkg-share drone_flock_controler)/launch/launch_single.launch.xml">
