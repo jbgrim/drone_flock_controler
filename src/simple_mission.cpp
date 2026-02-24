@@ -43,12 +43,18 @@
 #include <px4_msgs/msg/vehicle_command.hpp>
 #include <px4_msgs/msg/vehicle_control_mode.hpp>
 #include <px4_msgs/msg/vehicle_status.hpp>
+#include <px4_msgs/msg/vehicle_local_position.hpp>
+#include <px4_msgs/msg/vehicle_global_position.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <stdint.h>
+#include <drone_flock_controler_interfaces/msg/drone_global_position.hpp>
+#include <drone_flock_controler_interfaces/msg/target_position.hpp>
 
 #include <chrono>
 #include <iostream>
+#include <drone_flock_controler/Vec3.hpp>
 
+using namespace drone_flock_controler_interfaces::msg;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 using namespace px4_msgs::msg;
@@ -60,7 +66,18 @@ public:
 	{
         // declaring parameters
         this->declare_parameter<int>("instance_id", 1);
+		this->declare_parameter<double>("k_mig", 1.0);
+		this->declare_parameter<double>("k_sep", 1.0);
+		this->declare_parameter<double>("k_coh", 1.0);
         instance_id_ = this->get_parameter("instance_id").as_int();
+		k_mig_ = this->get_parameter("k_mig").as_double();
+		k_sep_ = this->get_parameter("k_sep").as_double();
+		k_coh_ = this->get_parameter("k_coh").as_double();
+
+		offboard_control_mode_publisher_ = this->create_publisher<OffboardControlMode>("/px4_" + std::to_string(instance_id_) + "/fmu/in/offboard_control_mode", 10);
+		trajectory_setpoint_publisher_ = this->create_publisher<TrajectorySetpoint>("/px4_" + std::to_string(instance_id_) + "/fmu/in/trajectory_setpoint", 10);
+		vehicle_command_publisher_ = this->create_publisher<VehicleCommand>("/px4_" + std::to_string(instance_id_) + "/fmu/in/vehicle_command", 10);
+		drone_position_publisher_ = this->create_publisher<DroneGlobalPosition>("/drone_flock_controler/positions", 10);
 
 		vehicle_status_subscription_ = this->create_subscription<VehicleStatus>(
 			"/px4_" + std::to_string(instance_id_) + "/fmu/out/vehicle_status_v1",
@@ -74,9 +91,70 @@ public:
 			}
 		);
 
-		offboard_control_mode_publisher_ = this->create_publisher<OffboardControlMode>("/px4_" + std::to_string(instance_id_) + "/fmu/in/offboard_control_mode", 10);
-		trajectory_setpoint_publisher_ = this->create_publisher<TrajectorySetpoint>("/px4_" + std::to_string(instance_id_) + "/fmu/in/trajectory_setpoint", 10);
-		vehicle_command_publisher_ = this->create_publisher<VehicleCommand>("/px4_" + std::to_string(instance_id_) + "/fmu/in/vehicle_command", 10);
+		vehicle_local_position_subscription_ = this->create_subscription<VehicleLocalPosition>(
+			"/px4_" + std::to_string(instance_id_) + "/fmu/out/vehicle_local_position_v1",
+			rclcpp::SensorDataQoS(),
+			[this](const VehicleLocalPosition::SharedPtr msg) {
+				this->local_position_.x = msg->x;
+				this->local_position_.y = msg->y;
+				this->local_position_.z = msg->z;
+				if (this->instance_id_ & 0b1) {
+					this->local_position_.x += 2.0f;
+				}
+				if (this->instance_id_ & 0b10) {
+					this->local_position_.y += 2.0f;
+				}
+				if (this->instance_id_ & 0b100) {
+					this->local_position_.x += 4.0f;
+				}
+				if (this->instance_id_ & 0b1000) {
+					this->local_position_.y += 4.0f;
+				}
+				DroneGlobalPosition position_msg;
+				position_msg.instance_id = this->instance_id_;
+				position_msg.x = this->local_position_.x;
+				position_msg.y = this->local_position_.y;
+				position_msg.z = this->local_position_.z;
+				this->drone_position_publisher_->publish(position_msg);
+			}
+		);
+
+		vehicle_global_position_subscription_ = this->create_subscription<VehicleGlobalPosition>(
+			"/px4_" + std::to_string(instance_id_) + "/fmu/out/vehicle_global_position",
+			rclcpp::SensorDataQoS(),
+			[this](const VehicleGlobalPosition::SharedPtr msg) {
+				this->global_position_ = *msg;
+			}
+		);
+
+		drone_positions_subscription_ = this->create_subscription<DroneGlobalPosition>(
+			"/drone_flock_controler/positions",
+			rclcpp::SensorDataQoS(),
+			[this](const DroneGlobalPosition::SharedPtr msg) {
+				// Update the position of the other drone in the flock
+				bool found = false;
+				for (auto& pos : this->drone_positions_) {
+					if (pos.instance_id == msg->instance_id) {
+						pos.x = msg->x;
+						pos.y = msg->y;
+						pos.z = msg->z;
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					this->drone_positions_.push_back(*msg);
+				}
+			}
+		);
+
+		target_position_subscription_ = this->create_subscription<TargetPosition>(
+			"/drone_flock_controler/target_position",
+			rclcpp::SensorDataQoS(),
+			[this](const TargetPosition::SharedPtr msg) {
+				this->target_position_ = *msg;
+			}
+		);
 
 		offboard_setpoint_counter_ = 0;
 
@@ -115,8 +193,12 @@ private:
 	rclcpp::Publisher<OffboardControlMode>::SharedPtr offboard_control_mode_publisher_;
 	rclcpp::Publisher<TrajectorySetpoint>::SharedPtr trajectory_setpoint_publisher_;
 	rclcpp::Publisher<VehicleCommand>::SharedPtr vehicle_command_publisher_;
+	rclcpp::Publisher<DroneGlobalPosition>::SharedPtr drone_position_publisher_;
 	rclcpp::Subscription<VehicleStatus>::SharedPtr vehicle_status_subscription_;
-
+	rclcpp::Subscription<VehicleLocalPosition>::SharedPtr vehicle_local_position_subscription_;
+	rclcpp::Subscription<VehicleGlobalPosition>::SharedPtr vehicle_global_position_subscription_;
+	rclcpp::Subscription<DroneGlobalPosition>::SharedPtr drone_positions_subscription_;
+	rclcpp::Subscription<TargetPosition>::SharedPtr target_position_subscription_;
 	std::atomic<uint64_t> timestamp_;   //!< common synced timestamped
 
 	uint64_t offboard_setpoint_counter_;   //!< counter for the number of setpoints sent
@@ -125,10 +207,19 @@ private:
     int instance_id_;
     uint32_t target_system_ = 0;
 	uint8_t arming_state_ = 0;
+	Vec3 local_position_;
+	TargetPosition target_position_;
+	VehicleGlobalPosition global_position_;
+	std::vector<DroneGlobalPosition> drone_positions_;
+	float k_mig_;
+	float k_sep_;
+	float k_coh_;
 
 	void publish_offboard_control_mode();
 	void publish_trajectory_setpoint();
 	void publish_vehicle_command(uint16_t command, float param1 = 0.0, float param2 = 0.0);
+
+	Vec3 compute_flocking_velocity(const DroneGlobalPosition& other_drone);
 };
 
 /**
@@ -158,8 +249,8 @@ void SimpleMission::disarm()
 void SimpleMission::publish_offboard_control_mode()
 {
 	OffboardControlMode msg{};
-	msg.position = true;
-	msg.velocity = false;
+	msg.position = false;
+	msg.velocity = true;
 	msg.acceleration = false;
 	msg.attitude = false;
 	msg.body_rate = false;
@@ -174,13 +265,30 @@ void SimpleMission::publish_offboard_control_mode()
  */
 void SimpleMission::publish_trajectory_setpoint()
 {
-	static int count = 0;
 	TrajectorySetpoint msg{};
-	msg.position = {0.0, 0.0, -5.0};
-	msg.yaw = 0.2*count; // [-PI:PI]
+	msg.position = {std::nanf(""), std::nanf(""), target_position_.z}; // ignore position setpoint but force altitude to 5m
+	msg.acceleration = {std::nanf(""), std::nanf(""), std::nanf("")}; // ignore acceleration control loop feeding
+
+	Vec3 p_mig(target_position_.x, target_position_.y, target_position_.z);
+	Vec3 r_mig = p_mig - local_position_;
+	float distance = r_mig.magnitude();
+	if (distance < 0.1f) { // goal reached don't move
+		msg.velocity = {0.f, 0.f, 0.f};
+	} else {
+		msg.velocity = ((k_mig_/distance) * r_mig).to_array();
+	}
+	// add flocking velocity from other drones
+	size_t num_drones = drone_positions_.size() - 1;
+	for (const auto& other_drone : drone_positions_) {
+		Vec3 v_flock = compute_flocking_velocity(other_drone);
+		msg.velocity[0] += v_flock.x / num_drones;
+		msg.velocity[1] += v_flock.y / num_drones;
+		msg.velocity[2] += v_flock.z / num_drones;
+	}
+
+	msg.yaw = target_position_.yaw; // [-PI:PI]
 	msg.timestamp = this->get_clock()->now().nanoseconds() / 1000;
 	trajectory_setpoint_publisher_->publish(msg);
-	count++;
 }
 
 /**
@@ -204,7 +312,24 @@ void SimpleMission::publish_vehicle_command(uint16_t command, float param1, floa
 	vehicle_command_publisher_->publish(msg);
 }
 
-//#include <mavsdk/mavsdk.h>
+Vec3 SimpleMission::compute_flocking_velocity(const DroneGlobalPosition& other_drone)
+{
+	if (other_drone.instance_id == this->instance_id_) {
+		return Vec3(0.f, 0.f, 0.f); // ignore self
+	}
+
+	// Simple flocking behavior: move towards the other drone if it's too far, otherwise stay still
+	Vec3 other_position(other_drone.x, other_drone.y, other_drone.z);
+	Vec3 r = other_position - local_position_;
+	float distance = r.magnitude();
+
+	Vec3 v_sep = r * (-k_sep_ / (distance * distance)); // separation velocity to avoid collisions
+
+	Vec3 v_coh = r * k_coh_; // cohesion velocity to move towards the other drone
+
+	return v_sep + v_coh;
+}
+
 
 int main(int argc, char *argv[])
 {

@@ -8,8 +8,14 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>px4_ros2_cpp</depend>
+  <depend>px4_ros2_py</depend>  
   <depend>rclcpp</depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <depend>drone_flock_controler_interfaces</depend>
 
   <exec_depend>px4_msgs</exec_depend>
 

@@ -2,14 +2,37 @@
     <arg name="instance_id" default="1"/>
     <arg name="pose_x" default="0"/>
     <arg name="pose_y" default="0"/>
+    <arg name="world" default="empty_world"/>
+    <arg name="k_mig" default="1.0"/>
+    <arg name="k_sep" default="1.0"/>
+    <arg name="k_coh" default="1.0"/>
+    <arg name="model" default="x500_depth"/>
     <executable name="px4_sitl" cmd="build/px4_sitl_default/bin/px4 -d -i $(var instance_id)" output="log" cwd="src/PX4-Autopilot">
         <env name="PX4_SYS_AUTOSTART" value="4001"/>
-        <env name="PX4_SIM_MODEL" value="gz_x500"/>
+        <env name="PX4_SIM_MODEL" value="gz_$(var model)"/>
         <env name="PX4_GZ_STANDALONE" value="1"/>
         <env name="PX4_GZ_MODEL_POSE" value="$(var pose_x),$(var pose_y)"/>
+        <env name="PX4_UXRCE_DDS_NS" value="px4_$(var instance_id)"/>
+        <env name="PX4_GZ_WORLD" value="$(var world)"/>
     </executable>
     
     <node pkg="drone_flock_controler" exec="simple_mission" name="drone_controler" output="screen" namespace="px4_$(var instance_id)">
         <param name="instance_id" value="$(var instance_id)"/>
+        <param name="k_mig" value="$(var k_mig)"/>
+        <param name="k_sep" value="$(var k_sep)"/>
+        <param name="k_coh" value="$(var k_coh)"/>
+    </node>
+    <node pkg="ros_gz_bridge" exec="bridge_node" name="camera_bridge" output="screen" namespace="px4_$(var instance_id)">
+        <param name="bridge_names" value="['camera_$(var instance_id)', 'depth_camera_$(var instance_id)']"/>
+        <param name="bridges.camera_$(var instance_id).ros_topic_name" value="/px4_$(var instance_id)/camera/image_raw"/>
+        <param name="bridges.camera_$(var instance_id).ros_type_name" value="sensor_msgs/msg/Image"/>
+        <param name="bridges.camera_$(var instance_id).gz_topic_name" value="/world/default/model/$(var model)_$(var instance_id)/link/camera_link/sensor/IMX214/image"/>
+        <param name="bridges.camera_$(var instance_id).gz_type_name" value="gz.msgs.Image"/>
+        <param name="bridges.camera_$(var instance_id).direction" value="GZ_TO_ROS"/>
+        <param name="bridges.depth_camera_$(var instance_id).ros_topic_name" value="/px4_$(var instance_id)/depth_camera/image_raw"/>
+        <param name="bridges.depth_camera_$(var instance_id).ros_type_name" value="sensor_msgs/msg/Image"/>
+        <param name="bridges.depth_camera_$(var instance_id).gz_topic_name" value="/world/default/model/$(var model)_$(var instance_id)/link/camera_link/sensor/StereoOV7251/depth_image"/>
+        <param name="bridges.depth_camera_$(var instance_id).gz_type_name" value="gz.msgs.Image"/>
+        <param name="bridges.depth_camera_$(var instance_id).direction" value="GZ_TO_ROS"/>
     </node>
 </launch>
