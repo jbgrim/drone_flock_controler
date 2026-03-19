@@ -12,29 +12,22 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(drone_flock_controler_interfaces REQUIRED)
-find_package(MAVSDK REQUIRED)
 # Python support
 find_package(rclpy REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-# Add executable
-add_executable(simple_mission src/simple_mission.cpp)
-target_include_directories(simple_mission PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(simple_mission rclcpp px4_msgs std_msgs drone_flock_controler_interfaces MAVSDK)
+install(PROGRAMS
+  drone_flock_controler/circular_trajectory.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME circular_trajectory
+)
 
-add_executable(circular_trajectory src/circular_trajectory.cpp)
-target_include_directories(circular_trajectory PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
-ament_target_dependencies(circular_trajectory rclcpp drone_flock_controler_interfaces)
-
-# Install executables
-install(TARGETS simple_mission circular_trajectory
-  DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS
+  drone_flock_controler/simple_mission.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME simple_mission)
 
 # Install launch files
 install(DIRECTORY launch
